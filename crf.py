@@ -1,4 +1,5 @@
 '''
+[Advanced: Making Dynamic Decisions and the Bi-LSTM CRF](http://pytorch.org/tutorials/beginner/nlp/advanced_tutorial.html)
 这个文件作为一个可以复用的模块
 该模块中自定义 CRF 层，实现批量训练,
 构建 CRF 类时需要指定 tag2idx: 字典 以及 ctx，即程序运行在CPU还是 GPU上：默认为 mx.gpu()
