@@ -10,7 +10,7 @@ If you do not use mxnet/gluon, you can download the crf.py file and modify the c
 
 # Reference
 * [Advanced: Making Dynamic Decisions and the Bi-LSTM CRF](http://pytorch.org/tutorials/beginner/nlp/advanced_tutorial.html)
-* [统计学习方法(李航)] ()
+* [统计学习方法(李航)](https://baike.baidu.com/item/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0%E6%96%B9%E6%B3%95/10430179?fr=aladdin)
 * [MXNet - Python API](https://mxnet.incubator.apache.org/api/python/index.html)
 * [Numpy](https://docs.scipy.org/doc/numpy/user/quickstart.html)
 ***
