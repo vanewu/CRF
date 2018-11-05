@@ -4,14 +4,15 @@
 @author：kenjewu
 @date：2018/4/30
 '''
+import time
 import numpy as np
 import mxnet as mx
 from mxnet import nd, gluon, autograd
 from crf import CRF
 
 ctx = mx.gpu()
-START_TAG = "<START>"
-STOP_TAG = "<STOP>"
+START_TAG = "<bos>"
+STOP_TAG = "<eos>"
 
 # 构造假的数据集用于测试 CRF 模型是否能够正常运行
 tag2idx = {"B": 0, "I": 1, "O": 2, START_TAG: 3, STOP_TAG: 4}
@@ -55,11 +56,11 @@ print(model.collect_params()['crf_model0_crf0_transitions'].data())
 optimizer = gluon.Trainer(model.collect_params(), 'sgd', {'learning_rate': 0.01, 'wd': 1e-4})
 
 # 训练
+start_time = time.time()
 for epoch in range(100):
     for batch_x, batch_y in iter_train:
         # CRF 的输入要求是一个长度为序列长的列表，所以这里是在构造这个列表，当然这个数据是假的
-        batch_x = [batch_x] * 7
-        batch_y = nd.split(batch_y, 7, axis=1)
+        batch_x = nd.broadcast_axis(nd.expand_dims(batch_x, axis=0), axis=0, size=7)
         with autograd.record():
             # 求对数似然
             neg_log_likelihood = model.crf.neg_log_likelihood(batch_x, batch_y)
@@ -69,4 +70,6 @@ for epoch in range(100):
 print(model.collect_params()['crf_model0_crf0_transitions'].data())
 
 # 使用模型预测
-print(model([x] * 7))
+print(model(nd.broadcast_axis(nd.expand_dims(x, axis=0), axis=0, size=7)))
+
+print(time.time()-start_time)
