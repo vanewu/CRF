@@ -1,9 +1,24 @@
-'''
-测试 CRF 模块文件，这里是通过将 CRF 作为一个层放入其他模型中测试，
-测试自定义的 CRF 层是否能够复用
-@author：kenjewu
-@date：2018/4/30
-'''
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Use CRF as a neural network layer built by GLuon to conduct training and prediction tests.
+# @author：kenjewu
+# @date：2018/10/05
+
 import time
 import numpy as np
 import mxnet as mx
@@ -14,7 +29,7 @@ ctx = mx.gpu()
 START_TAG = "<bos>"
 STOP_TAG = "<eos>"
 
-# 构造假的数据集用于测试 CRF 模型是否能够正常运行
+# generate pseudo data
 tag2idx = {"B": 0, "I": 1, "O": 2, START_TAG: 3, STOP_TAG: 4}
 
 x = nd.random.normal(shape=(10, 5), ctx=ctx)
@@ -34,8 +49,15 @@ iter_train = gluon.data.DataLoader(dataset_train, batch_size=5, shuffle=True)
 
 
 class CRF_MODEL(gluon.nn.Block):
-    '''
-    这里构造一个其他模型，虽然模型中只有 CRF 一层，但可以测试 CRF 是否能作为自定义层复用
+    '''Here we construct a neural network.
+       Although there is only one CRF layer in the model,
+       we can test whether CRF can be reused as a custom layer.
+
+    Args:
+        gluon ([type]): [description]
+
+    Returns:
+        [type]: [description]
     '''
 
     def __init__(self, tag2idx, ctx=mx.gpu(), ** kwargs):
@@ -47,29 +69,28 @@ class CRF_MODEL(gluon.nn.Block):
         return self.crf(x)
 
 
-# 构建一个模型
+# build a model
 model = CRF_MODEL(tag2idx, ctx=ctx)
 model.initialize(ctx=ctx)
-# 查看模型中的参数
+# print params of the model
 print(model.collect_params())
 print(model.collect_params()['crf_model0_crf0_transitions'].data())
 optimizer = gluon.Trainer(model.collect_params(), 'sgd', {'learning_rate': 0.01, 'wd': 1e-4})
 
-# 训练
+# train
 start_time = time.time()
 for epoch in range(100):
     for batch_x, batch_y in iter_train:
-        # CRF 的输入要求是一个长度为序列长的列表，所以这里是在构造这个列表，当然这个数据是假的
         batch_x = nd.broadcast_axis(nd.expand_dims(batch_x, axis=0), axis=0, size=7)
         with autograd.record():
-            # 求对数似然
+            # loss
             neg_log_likelihood = model.crf.neg_log_likelihood(batch_x, batch_y)
-        # 求导并更新
+        # backward and update params
         neg_log_likelihood.backward()
         optimizer.step(5)
 print(model.collect_params()['crf_model0_crf0_transitions'].data())
 
-# 使用模型预测
+# predict
 print(model(nd.broadcast_axis(nd.expand_dims(x, axis=0), axis=0, size=7)))
 
-print(time.time()-start_time)
+print('use {0} secs!'.format(time.time()-start_time))
