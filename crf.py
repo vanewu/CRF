@@ -90,7 +90,7 @@ class CRF(gluon.nn.Block):
                              shape is (seq_len, batch_size, tagset_size)
 
         Returns:
-            [type]: [description]
+            alpha (NDArray): shape is (batch_size, )
         '''
 
         # Defining forward NDArray
@@ -168,10 +168,10 @@ class CRF(gluon.nn.Block):
             # feat shape: (batch_size, self.tagset_size)
             feat = data
             # tag shape:(batch_size, 1)
-            idx, tags, score = states
+            idx, tags_iner, score = states
             i = int(idx.asscalar())
-            score = score + nd.pick(self.transitions.data()[tags[:, i + 1]],
-                                    tags[:, i], axis=1) + nd.pick(feat, tags[:, i + 1], axis=1)
+            score = score + nd.pick(self.transitions.data()[tags_iner[:, i + 1]],
+                                    tags_iner[:, i], axis=1) + nd.pick(feat, tags_iner[:, i + 1], axis=1)
             idx += 1
 
             return feat, [idx, tags, score]
@@ -203,10 +203,10 @@ class CRF(gluon.nn.Block):
 
         def update_decode(data, states):
             feat = data
-            vvars = states
+            vvars_iner = states
 
             # vvars_t shape: (self.tagset_size, batch_size, self.tagset_size)
-            vvars_t = nd.broadcast_axis(nd.expand_dims(vvars, axis=0), axis=0, size=self.tagset_size)
+            vvars_t = nd.broadcast_axis(nd.expand_dims(vvars_iner, axis=0), axis=0, size=self.tagset_size)
             # trans shape: (self.tagset_size, 1, self.tagset_size)
             trans = nd.expand_dims(self.transitions.data(), axis=1)
             next_tag_var = vvars_t + trans
@@ -218,15 +218,16 @@ class CRF(gluon.nn.Block):
             viterbivars_t = nd.transpose(nd.pick(next_tag_var, best_tag_id, axis=-1), axes=(1, 0))
             bptrs_t = nd.transpose(best_tag_id, axes=(1, 0))
 
-            vvars = viterbivars_t + feat
+            vvars_iner = viterbivars_t + feat
 
-            return bptrs_t, vvars
+            return bptrs_t, vvars_iner
 
         # backpointers shape: (seq_len, batch_size, self.tagset_size)
         backpointers, vvars = nd.contrib.foreach(update_decode, feats, vvars)
 
         # transform to STOP_TAG
-        terminal_var = vvars + self.transitions.data()[self.tag2idx[START_TAG]]
+        # terminal_var shape: (batch_size, self.tagset_size)
+        terminal_var = vvars + self.transitions.data()[self.tag2idx[STOP_TAG]]
         best_tag_id = nd.argmax(terminal_var, axis=1)
         # path_score shape:（batch_size, )
         path_score = nd.pick(terminal_var, best_tag_id, axis=1)
@@ -247,7 +248,7 @@ class CRF(gluon.nn.Block):
         best_path.reverse()
 
         # Build the matrix of the best path, shape: (batch_size, seq_len)
-        best_path_matrix = nd.stack(*best_path, axis=0)
+        best_path_matrix = nd.stack(*best_path, axis=1)
         return path_score, best_path_matrix
 
     def neg_log_likelihood(self, feats, tags):
